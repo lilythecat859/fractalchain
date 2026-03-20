@@ -1,0 +1,247 @@
+# fractalchain/docker-compose.yml
+version: '3.8'
+
+services:
+  # Bootstrap node - first node in the network
+  fractal-bootstrap:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: fractalchain:latest
+    container_name: fractal-bootstrap
+    hostname: fractal-bootstrap
+    ports:
+      - "8591:8591"
+      - "8592:8592"
+      - "8593:8593"
+      - "8594:8594"
+    volumes:
+      - bootstrap-data:/app/data
+      - ./config/bootstrap.toml:/app/config.toml:ro
+    environment:
+      - RUST_LOG=info
+      - NODE_ID=bootstrap
+      - BOOTSTRAP=true
+    networks:
+      fractal-network:
+        ipv4_address: 172.20.0.2
+    command: ["start", "--mine", "--mining-threads", "4"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8593/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Validator nodes - participate in consensus
+  fractal-validator-1:
+    image: fractalchain:latest
+    container_name: fractal-validator-1
+    hostname: fractal-validator-1
+    ports:
+      - "8601:8591"
+      - "8602:8592"
+    volumes:
+      - validator1-data:/app/data
+      - ./config/validator1.toml:/app/config.toml:ro
+    environment:
+      - RUST_LOG=info
+      - NODE_ID=validator1
+      - BOOTSTRAP_PEERS=/ip4/172.20.0.2/tcp/8591/p2p/12D3KooWBootstrap
+    networks:
+      fractal-network:
+        ipv4_address: 172.20.0.11
+    depends_on:
+      - fractal-bootstrap
+    command: ["start", "--mine", "--mining-threads", "2"]
+    restart: unless-stopped
+
+  fractal-validator-2:
+    image: fractalchain:latest
+    container_name: fractal-validator-2
+    hostname: fractal-validator-2
+    ports:
+      - "8611:8591"
+      - "8612:8592"
+    volumes:
+      - validator2-data:/app/data
+      - ./config/validator2.toml:/app/config.toml:ro
+    environment:
+      - RUST_LOG=info
+      - NODE_ID=validator2
+      - BOOTSTRAP_PEERS=/ip4/172.20.0.2/tcp/8591/p2p/12D3KooWBootstrap
+    networks:
+      fractal-network:
+        ipv4_address: 172.20.0.12
+    depends_on:
+      - fractal-bootstrap
+    command: ["start", "--mine", "--mining-threads", "2"]
+    restart: unless-stopped
+
+  fractal-validator-3:
+    image: fractalchain:latest
+    container_name: fractal-validator-3
+    hostname: fractal-validator-3
+    ports:
+      - "8621:8591"
+      - "8622:8592"
+    volumes:
+      - validator3-data:/app/data
+      - ./config/validator3.toml:/app/config.toml:ro
+    environment:
+      - RUST_LOG=info
+      - NODE_ID=validator3
+      - BOOTSTRAP_PEERS=/ip4/172.20.0.2/tcp/8591/p2p/12D3KooWBootstrap
+    networks:
+      fractal-network:
+        ipv4_address: 172.20.0.13
+    depends_on:
+      - fractal-bootstrap
+    command: ["start", "--mine", "--mining-threads", "2"]
+    restart: unless-stopped
+
+  fractal-validator-4:
+    image: fractalchain:latest
+    container_name: fractal-validator-4
+    hostname: fractal-validator-4
+    ports:
+      - "8631:8591"
+      - "8632:8592"
+    volumes:
+      - validator4-data:/app/data
+      - ./config/validator4.toml:/app/config.toml:ro
+    environment:
+      - RUST_LOG=info
+      - NODE_ID=validator4
+      - BOOTSTRAP_PEERS=/ip4/172.20.0.2/tcp/8591/p2p/12D3KooWBootstrap
+    networks:
+      fractal-network:
+        ipv4_address: 172.20.0.14
+    depends_on:
+      - fractal-bootstrap
+    command: ["start", "--mine", "--mining-threads", "2"]
+    restart: unless-stopped
+
+  # RPC nodes - serve JSON-RPC requests
+  fractal-rpc-1:
+    image: fractalchain:latest
+    container_name: fractal-rpc-1
+    hostname: fractal-rpc-1
+    ports:
+      - "8641:8593"
+      - "8642:8594"
+    volumes:
+      - rpc1-data:/app/data
+      - ./config/rpc1.toml:/app/config.toml:ro
+    environment:
+      - RUST_LOG=info
+      - NODE_ID=rpc1
+      - BOOTSTRAP_PEERS=/ip4/172.20.0.2/tcp/8591/p2p/12D3KooWBootstrap
+    networks:
+      fractal-network:
+        ipv4_address: 172.20.0.21
+    depends_on:
+      - fractal-bootstrap
+    command: ["start"]
+    restart: unless-stopped
+
+  fractal-rpc-2:
+    image: fractalchain:latest
+    container_name: fractal-rpc-2
+    hostname: fractal-rpc-2
+    ports:
+      - "8651:8593"
+      - "8652:8594"
+    volumes:
+      - rpc2-data:/app/data
+      - ./config/rpc2.toml:/app/config.toml:ro
+    environment:
+      - RUST_LOG=info
+      - NODE_ID=rpc2
+      - BOOTSTRAP_PEERS=/ip4/172.20.0.2/tcp/8591/p2p/12D3KooWBootstrap
+    networks:
+      fractal-network:
+        ipv4_address: 172.20.0.22
+    depends_on:
+      - fractal-bootstrap
+    command: ["start"]
+    restart: unless-stopped
+
+  # Load balancer for RPC nodes
+  nginx:
+    image: nginx:alpine
+    container_name: fractal-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - fractal-rpc-1
+      - fractal-rpc-2
+    networks:
+      - fractal-network
+    restart: unless-stopped
+
+  # Monitoring - Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: fractal-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus-data:/prometheus
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - fractal-network
+    restart: unless-stopped
+
+  # Monitoring - Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: fractal-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=fractal859
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - fractal-network
+    restart: unless-stopped
+
+  # Log aggregation - Loki
+  loki:
+    image: grafana/loki:latest
+    container_name: fractal-loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki-data:/loki
+      - ./monitoring/loki.yml:/etc/loki/local-config.yaml:ro
+    networks:
+      - fractal-network
+    restart: unless-stopped
+
+networks:
+  fractal-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  bootstrap-data:
+  validator1-data:
+  validator2-data:
+  validator3-data:
+  validator4-data:
+  rpc1-data:
+  rpc2-data:
+  prometheus-data:
+  grafana-data:
+  loki-data:

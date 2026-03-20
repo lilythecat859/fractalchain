@@ -1,0 +1,89 @@
+# fractalchain/Dockerfile
+# Multi-stage build for FRACTALCHAIN node
+
+# Build stage
+FROM rust:1.75-slim as builder
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    protobuf-compiler \
+    clang \
+    llvm-dev \
+    libclang-dev \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /build
+
+# Copy manifests first for better caching
+COPY Cargo.toml Cargo.lock ./
+COPY types/Cargo.toml types/
+COPY consensus/Cargo.toml consensus/
+COPY network/Cargo.toml network/
+COPY evm/Cargo.toml evm/
+COPY state/Cargo.toml state/
+COPY rpc/Cargo.toml rpc/
+COPY cmd/Cargo.toml cmd/
+
+# Create dummy files to build dependencies
+RUN mkdir -p types/src consensus/src network/src evm/src state/src rpc/src cmd/src && \
+    echo "fn main() {}" > cmd/src/main.rs && \
+    echo "" > types/src/lib.rs && \
+    echo "" > consensus/src/lib.rs && \
+    echo "" > network/src/lib.rs && \
+    echo "" > evm/src/lib.rs && \
+    echo "" > state/src/lib.rs && \
+    echo "" > rpc/src/lib.rs
+
+# Build dependencies
+RUN cargo build --release
+
+# Copy actual source code
+COPY . .
+
+# Touch main.rs to ensure it rebuilds
+RUN touch cmd/src/main.rs
+
+# Build the actual binary
+RUN cargo build --release --bin fractalchain
+
+# Runtime stage
+FROM debian:bookworm-slim
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    libclang1 \
+    protobuf-compiler \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create fractal user
+RUN useradd -m -u 1000 fractal
+
+# Set working directory
+WORKDIR /app
+
+# Copy binary from builder
+COPY --from=builder /build/target/release/fractalchain /app/fractalchain
+
+# Copy default configuration
+COPY --from=builder /build/config.toml /app/config.toml
+
+# Create data directory
+RUN mkdir -p /app/data && chown -R fractal:fractal /app
+
+# Switch to fractal user
+USER fractal
+
+# Expose ports
+EXPOSE 8591 8592 8593 8594
+
+# Set entrypoint
+ENTRYPOINT ["/app/fractalchain"]
+
+# Default command
+CMD ["start", "--config", "/app/config.toml"]

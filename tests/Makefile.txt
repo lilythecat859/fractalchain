@@ -1,0 +1,85 @@
+# fractalchain/tests/Makefile
+# Test automation for FRACTALCHAIN
+
+.PHONY: all test test-unit test-integration test-property test-bench test-load test-10m-tps
+
+# Default target
+all: test
+
+# Run all tests
+test:
+	cargo test --all -- --nocapture
+
+# Unit tests
+test-unit:
+	cargo test --lib -- --nocapture
+
+# Integration tests
+test-integration:
+	cargo test --test integration_tests -- --nocapture
+
+# Property-based tests
+test-property:
+	cargo test --test property_tests -- --nocapture
+
+# Benchmarks
+test-bench:
+	cargo bench --test benchmarks
+
+# Load tests
+test-load:
+	cargo test --test load_generator -- --nocapture
+
+# 10M TPS test
+test-10m-tps:
+	cargo test --test integration_tests test_10m_tps_target -- --nocapture
+
+# Performance test
+test-performance:
+	cargo test --release --test integration_tests test_high_load_performance -- --nocapture
+
+# Memory test
+test-memory:
+	cargo test --test integration_tests -- --nocapture --test-threads=1
+
+# Fault tolerance test
+test-fault-tolerance:
+	cargo test --test integration_tests test_fault_tolerance -- --nocapture
+
+# Cross-shard test
+test-cross-shard:
+	cargo test --test integration_tests test_cross_shard_operations -- --nocapture
+
+# Clean test artifacts
+clean:
+	cargo clean
+	rm -rf target/
+
+# Generate test coverage
+coverage:
+	cargo tarpaulin --out Html --output-dir coverage/
+
+# Run tests with specific features
+test-features:
+	cargo test --all-features -- --nocapture
+
+# Run tests without default features
+test-no-default-features:
+	cargo test --no-default-features -- --nocapture
+
+# Help
+help:
+	@echo "Available test targets:"
+	@echo "  test              - Run all tests"
+	@echo "  test-unit         - Run unit tests"
+	@echo "  test-integration  - Run integration tests"
+	@echo "  test-property     - Run property-based tests"
+	@echo "  test-bench        - Run benchmarks"
+	@echo "  test-load         - Run load tests"
+	@echo "  test-10m-tps      - Run 10M TPS test"
+	@echo "  test-performance  - Run performance tests"
+	@echo "  test-memory       - Run memory tests"
+	@echo "  test-fault-tolerance - Run fault tolerance tests"
+	@echo "  test-cross-shard  - Run cross-shard tests"
+	@echo "  coverage          - Generate test coverage report"
+	@echo "  clean             - Clean test artifacts"

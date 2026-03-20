@@ -1,0 +1,159 @@
+# fractalchain/Makefile
+# Build and deployment automation for FRACTALCHAIN
+
+# Variables
+REGISTRY := fractalchain
+IMAGE_TAG := latest
+NAMESPACE := fractalchain
+ENVIRONMENT := dev
+
+# Default target
+.PHONY: all
+all: build
+
+# Build targets
+.PHONY: build
+build:
+	cargo build --release --bin fractalchain
+
+.PHONY: build-image
+build-image:
+	docker build -t $(REGISTRY):$(IMAGE_TAG) .
+
+.PHONY: test
+test:
+	cargo test --all
+
+.PHONY: test-integration
+test-integration:
+	cargo test --test integration_tests
+
+.PHONY: bench
+bench:
+	cargo bench --all
+
+# Deployment targets
+.PHONY: deploy
+deploy: build-image
+	./scripts/deploy.sh $(ENVIRONMENT) deploy
+
+.PHONY: deploy-dev
+deploy-dev:
+	$(MAKE) deploy ENVIRONMENT=dev
+
+.PHONY: deploy-staging
+deploy-staging:
+	$(MAKE) deploy ENVIRONMENT=staging
+
+.PHONY: deploy-prod
+deploy-prod:
+	$(MAKE) deploy ENVIRONMENT=prod
+
+.PHONY: status
+status:
+	./scripts/deploy.sh $(ENVIRONMENT) status
+
+.PHONY: cleanup
+cleanup:
+	./scripts/deploy.sh $(ENVIRONMENT) cleanup
+
+# Development targets
+.PHONY: run
+run:
+	cargo run --bin fractalchain -- start --config config.toml
+
+.PHONY: run-dev
+run-dev:
+	RUST_LOG=debug cargo run --bin fractalchain -- start --config config.dev.toml
+
+.PHONY: genesis
+genesis:
+	cargo run --bin fractalchain -- genesis --output genesis.json
+
+.PHONY: lint
+lint:
+	cargo clippy --all-targets --all-features -- -D warnings
+
+.PHONY: fmt
+fmt:
+	cargo fmt --all
+
+.PHONY: docs
+docs:
+	cargo doc --all --no-deps
+
+# Benchmark targets
+.PHONY: bench-tps
+bench-tps:
+	cargo bench --bench tps_benchmark
+
+.PHONY: bench-latency
+bench-latency:
+	cargo bench --bench latency_benchmark
+
+.PHONY: bench-throughput
+bench-throughput:
+	cargo bench --bench throughput_benchmark
+
+# Docker targets
+.PHONY: docker-build
+docker-build:
+	docker build -t $(REGISTRY):$(IMAGE_TAG) .
+
+.PHONY: docker-push
+docker-push:
+	docker push $(REGISTRY):$(IMAGE_TAG)
+
+.PHONY: docker-run
+docker-run:
+	docker run -p 8591:8591 -p 8592:8592 -p 8593:8593 $(REGISTRY):$(IMAGE_TAG)
+
+# Kubernetes targets
+.PHONY: k8s-apply
+k8s-apply:
+	kubectl apply -f kubernetes/
+
+.PHONY: k8s-delete
+k8s-delete:
+	kubectl delete -f kubernetes/ --ignore-not-found=true
+
+.PHONY: k8s-status
+k8s-status:
+	kubectl get all -n $(NAMESPACE)
+
+# Help target
+.PHONY: help
+help:
+	@echo "FRACTALCHAIN Makefile"
+	@echo ""
+	@echo "Build targets:"
+	@echo "  build          - Build the project"
+	@echo "  build-image    - Build Docker image"
+	@echo "  test           - Run tests"
+	@echo "  bench          - Run benchmarks"
+	@echo ""
+	@echo "Deployment targets:"
+	@echo "  deploy         - Deploy to current environment"
+	@echo "  deploy-dev     - Deploy to development environment"
+	@echo "  deploy-staging - Deploy to staging environment"
+	@echo "  deploy-prod    - Deploy to production environment"
+	@echo "  status         - Show deployment status"
+	@echo "  cleanup        - Clean up deployment"
+	@echo ""
+	@echo "Development targets:"
+	@echo "  run            - Run the node"
+	@echo "  run-dev        - Run in development mode"
+	@echo "  genesis        - Generate genesis block"
+	@echo "  lint           - Run linter"
+	@echo "  fmt            - Format code"
+	@echo "  docs           - Generate documentation"
+	@echo ""
+	@echo "Docker targets:"
+	@echo "  docker-build   - Build Docker image"
+	@echo "  docker-push    - Push Docker image"
+	@echo "  docker-run     - Run Docker container"
+	@echo ""
+	@echo "Kubernetes targets:"
+	@echo "  k8s-apply      - Apply Kubernetes manifests"
+	@echo "  k8s-delete     - Delete Kubernetes resources"
+	@echo "  k8s-status      - Show Kubernetes status"
