@@ -1,0 +1,28 @@
+# fractalchain/rpc/Cargo.toml
+[
+package
+]
+name = "fractalchain-rpc"
+version = "0.1.0"
+edition = "2026"
+authors = ["FRACTALCHAIN Core Team"]
+description = "Ethereum-compatible JSON-RPC for FRACTALCHAIN"
+
+[
+dependencies
+]
+fractalchain-types = { path = "../types" }
+fractalchain-evm = { path = "../evm" }
+fractalchain-consensus = { path = "../consensus" }
+fractalchain-network = { path = "../network" }
+jsonrpsee = { version = "0.20", features = ["server", "macros"] }
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+hex = "0.4"
+async-trait = "0.1"
+
+[
+dev-dependencies
+]
+tokio-test = "0.4"

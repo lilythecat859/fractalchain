@@ -1,0 +1,9 @@
+# fractalchain/kubernetes/namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fractalchain
+  labels:
+    name: fractalchain
+    app.kubernetes.io/name: fractalchain
+    app.kubernetes.io/component: blockchain

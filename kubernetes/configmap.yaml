@@ -1,0 +1,58 @@
+# fractalchain/kubernetes/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fractal-config
+  namespace: fractalchain
+data:
+  bootstrap.toml: |
+    node_id = "bootstrap"
+    listen_addrs = ["0.0.0.0:8591", "0.0.0.0:8592"]
+    bootstrap = true
+    
+    [network]
+    enable_discovery = true
+    discovery_interval_secs = 30
+    max_peers_per_shard = 32
+    propagation_timeout_ms = 1000
+    cross_shard_latency_target_ms = 50
+    
+    [consensus]
+    enable_mining = true
+    mining_threads = 4
+    proposal_timeout_ms = 1000
+    vote_timeout_ms = 500
+
+  validator.toml: |
+    node_id = "validator"
+    listen_addrs = ["0.0.0.0:8591", "0.0.0.0:8592"]
+    
+    [network]
+    enable_discovery = true
+    discovery_interval_secs = 30
+    max_peers_per_shard = 32
+    propagation_timeout_ms = 1000
+    cross_shard_latency_target_ms = 50
+    
+    [consensus]
+    enable_mining = true
+    mining_threads = 2
+    proposal_timeout_ms = 1000
+    vote_timeout_ms = 500
+
+  rpc.toml: |
+    node_id = "rpc"
+    listen_addrs = ["0.0.0.0:8593", "0.0.0.0:8594"]
+    
+    [network]
+    enable_discovery = true
+    discovery_interval_secs = 30
+    max_peers_per_shard = 32
+    propagation_timeout_ms = 1000
+    cross_shard_latency_target_ms = 50
+    
+    [consensus]
+    enable_mining = false
+    mining_threads = 0
+    proposal_timeout_ms = 1000
+    vote_timeout_ms = 500

@@ -1,0 +1,26 @@
+# fractalchain/consensus/Cargo.toml
+[
+package
+]
+name = "fractalchain-consensus"
+version = "0.1.0"
+edition = "2026"
+authors = ["FRACTALCHAIN Core Team"]
+description = "FractalBFT consensus engine for FRACTALCHAIN"
+
+[
+dependencies
+]
+fractalchain-types = { path = "../types" }
+tokio = { version = "1.0", features = ["full"] }
+bls12_381 = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "1.0"
+sha2 = "0.10"
+num-complex = "0.4"
+rand = "0.8"
+
+[
+dev-dependencies
+]
+tokio-test = "0.4"

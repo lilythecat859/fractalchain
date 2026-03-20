@@ -1,0 +1,104 @@
+# fractalchain/kubernetes/bootstrap-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fractal-bootstrap
+  namespace: fractalchain
+  labels:
+    app: fractal-bootstrap
+    app.kubernetes.io/name: fractalchain
+    app.kubernetes.io/component: bootstrap
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fractal-bootstrap
+  template:
+    metadata:
+      labels:
+        app: fractal-bootstrap
+        app.kubernetes.io/name: fractalchain
+        app.kubernetes.io/component: bootstrap
+    spec:
+      containers:
+      - name: fractalchain
+        image: fractalchain:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8591
+          name: p2p-1
+          protocol: TCP
+        - containerPort: 8592
+          name: p2p-2
+          protocol: TCP
+        - containerPort: 8593
+          name: rpc
+          protocol: TCP
+        - containerPort: 8594
+          name: rpc-tls
+          protocol: TCP
+        env:
+        - name: RUST_LOG
+          value: "info"
+        - name: NODE_ID
+          value: "bootstrap"
+        - name: BOOTSTRAP
+          value: "true"
+        volumeMounts:
+        - name: config
+          mountPath: /app/config.toml
+          subPath: bootstrap.toml
+        - name: data
+          mountPath: /app/data
+        command: ["/app/fractalchain"]
+        args: ["start", "--mine", "--mining-threads", "4"]
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8593
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8593
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: config
+        configMap:
+          name: fractal-config
+      - name: data
+        persistentVolumeClaim:
+          claimName: fractal-bootstrap-pvc
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: "fractalchain"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fractal-bootstrap-pvc
+  namespace: fractalchain
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: fast-ssd

@@ -1,0 +1,116 @@
+# fractalchain/kubernetes/rpc-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: fractal-rpc
+  namespace: fractalchain
+  labels:
+    app: fractal-rpc
+    app.kubernetes.io/name: fractalchain
+    app.kubernetes.io/component: rpc
+spec:
+  selector:
+    app: fractal-rpc
+  ports:
+  - name: rpc
+    port: 8593
+    targetPort: 8593
+    protocol: TCP
+  - name: rpc-tls
+    port: 8594
+    targetPort: 8594
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fractal-rpc
+  namespace: fractalchain
+  labels:
+    app: fractal-rpc
+    app.kubernetes.io/name: fractalchain
+    app.kubernetes.io/component: rpc
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fractal-rpc
+  template:
+    metadata:
+      labels:
+        app: fractal-rpc
+        app.kubernetes.io/name: fractalchain
+        app.kubernetes.io/component: rpc
+    spec:
+      containers:
+      - name: fractalchain
+        image: fractalchain:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8593
+          name: rpc
+          protocol: TCP
+        - containerPort: 8594
+          name: rpc-tls
+          protocol: TCP
+        env:
+        - name: RUST_LOG
+          value: "info"
+        - name: NODE_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: BOOTSTRAP_PEERS
+          value: "/ip4/fractal-bootstrap.fractalchain.svc.cluster.local/tcp/8591/p2p/12D3KooWBootstrap"
+        volumeMounts:
+        - name: config
+          mountPath: /app/config.toml
+          subPath: rpc.toml
+        - name: data
+          mountPort: /app/data
+        command: ["/app/fractalchain"]
+        args: ["start"]
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8593
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8593
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: config
+        configMap:
+          name: fractal-config
+      - name: data
+        persistentVolumeClaim:
+          claimName: fractal-rpc-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fractal-rpc-pvc
+  namespace: fractalchain
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: fast-ssd

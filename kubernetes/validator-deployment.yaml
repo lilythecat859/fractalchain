@@ -1,0 +1,101 @@
+# fractalchain/kubernetes/validator-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fractal-validator
+  namespace: fractalchain
+  labels:
+    app: fractal-validator
+    app.kubernetes.io/name: fractalchain
+    app.kubernetes.io/component: validator
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: fractal-validator
+  template:
+    metadata:
+      labels:
+        app: fractal-validator
+        app.kubernetes.io/name: fractalchain
+        app.kubernetes.io/component: validator
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - fractal-validator
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - name: fractalchain
+        image: fractalchain:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8591
+          name: p2p-1
+          protocol: TCP
+        - containerPort: 8592
+          name: p2p-2
+          protocol: TCP
+        env:
+        - name: RUST_LOG
+          value: "info"
+        - name: NODE_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: BOOTSTRAP_PEERS
+          value: "/ip4/fractal-bootstrap.fractalchain.svc.cluster.local/tcp/8591/p2p/12D3KooWBootstrap"
+        volumeMounts:
+        - name: config
+          mountPath: /app/config.toml
+          subPath: validator.toml
+        - name: data
+          mountPath: /app/data
+        command: ["/app/fractalchain"]
+        args: ["start", "--mine", "--mining-threads", "2"]
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          tcpSocket:
+            port: 8591
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
+            port: 8591
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: config
+        configMap:
+          name: fractal-config
+      - name: data
+        persistentVolumeClaim:
+          claimName: fractal-validator-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fractal-validator-pvc
+  namespace: fractalchain
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: fast-ssd

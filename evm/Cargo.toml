@@ -1,0 +1,25 @@
+# fractalchain/evm/Cargo.toml
+[
+package
+]
+name = "fractalchain-evm"
+version = "0.1.0"
+edition = "2026"
+authors = ["FRACTALCHAIN Core Team"]
+description = "Parallel EVM execution engine for FRACTALCHAIN"
+
+[
+dependencies
+]
+fractalchain-types = { path = "../types" }
+tokio = { version = "1.0", features = ["full"] }
+rayon = "1.7"
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "1.0"
+sha2 = "0.10"
+num-complex = "0.4"
+
+[
+dev-dependencies
+]
+tokio-test = "0.4"
